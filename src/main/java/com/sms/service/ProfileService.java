@@ -3,6 +3,8 @@ package com.sms.service;
 import com.sms.dto.LoginDTO;
 import com.sms.dto.ProfileDTO;
 import com.sms.entity.Profile;
+import com.sms.exception.ItemAlreadyExistException;
+import com.sms.exception.ItemNotFoundException;
 import com.sms.repository.ProfileRepository;
 import com.sms.util.MD5Encode;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,14 +37,14 @@ public class ProfileService {
     private void exist(String username) {
         Optional<Profile> optional = profileRepository.findByUsername(username);
         if(optional.isPresent()){
-            throw new RuntimeException("Profile already exists");
+            throw new ItemAlreadyExistException("Profile already exists");
         }
     }
 
     public String login(LoginDTO dto) {
         Optional<Profile> optional = profileRepository.findByUsernameAndPassword(dto.getUsername(), MD5Encode.encode(dto.getPassword()));
         if(optional.isEmpty()){
-            throw new RuntimeException("User not found");
+            throw new ItemNotFoundException("Profile not found");
         }
         return optional.get().getToken();
     }
@@ -50,7 +52,7 @@ public class ProfileService {
     public void existToken(String userToken) {
         Optional<Profile> optional = profileRepository.findByToken(userToken);
         if(optional.isEmpty()){
-            throw new RuntimeException("Token not found");
+            throw new ItemNotFoundException("Token not found");
         }
     }
 }
