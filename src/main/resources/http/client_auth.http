@@ -1,0 +1,59 @@
+###register
+POST localhost:8082/client/auth/registration
+Content-Type: application/json
+
+{
+  "companyName": "NoName",
+  "ownerName": "Alish",
+  "ownerSurname": "Alishev",
+  "phone": "+998901234567",
+  "login": "alish",
+  "email": "alish@gmail.com",
+  "password": "12345"
+}
+
+###register
+POST localhost:8082/client/auth/registration
+Content-Type: application/json
+
+{
+  "companyName": "WhoKnows",
+  "ownerName": "Valish",
+  "ownerSurname": "Valishev",
+  "phone": "+998999876543",
+  "login": "valish",
+  "email": "valish@gmail.com",
+  "password": "54321"
+}
+
+###register
+POST localhost:8082/client/auth/registration
+Content-Type: application/json
+
+{
+  "companyName": "WhoKnows",
+  "ownerName": "Valish",
+  "ownerSurname": "",
+  "phone": "+998999876543",
+  "login": "valish",
+  "email": "valishgmail.com",
+  "password": "543"
+}
+
+###login
+POST localhost:8082/client/auth/login
+Content-Type: application/json
+
+{
+  "login": "valish",
+  "password": "54321"
+}
+
+###login
+POST localhost:8082/client/auth/login
+Content-Type: application/json
+
+{
+  "login": "alis",
+  "password": "12345"
+}
