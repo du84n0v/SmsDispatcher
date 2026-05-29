@@ -1,6 +1,5 @@
 package com.sms.entity;
 
-import com.sms.enums.ProfileRoleEnum;
 import com.sms.enums.ProfileStatusEnum;
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -11,16 +10,25 @@ import java.time.LocalDateTime;
 @Getter
 @Setter
 @Entity
-public class Profile {
+public class Client {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Integer id;
 
-    @Column
-    private String name;
+    @Column(name = "company_name")
+    private String companyName;
+
+    @Column(name = "owner_name")
+    private String ownerName;
+
+    @Column(name = "owner_surname")
+    private String ownerSurname;
 
     @Column
-    private String surname;
+    private String phone;
+
+    @Column
+    private String email;
 
     @Column
     private String login;
@@ -28,8 +36,8 @@ public class Profile {
     @Column
     private String password;
 
-    @Enumerated(EnumType.STRING)
-    private ProfileRoleEnum role;
+    @Column
+    private Double balance;
 
     @Enumerated(EnumType.STRING)
     private ProfileStatusEnum status;

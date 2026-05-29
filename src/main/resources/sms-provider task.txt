@@ -1,0 +1,610 @@
+***** SMS Provider System - Backend Project Homework *****
+
+Ushbu loyiha talabalar uchun real biznes logikaga ega bo‘lgan backend tizim yaratish maqsadida beriladi. 
+Loyiha davomida talabalar REST API yaratish, authentication va authorization, transaction management, database bilan ishlash,
+ layered architecture va production ga yaqin backend tizim qurishni amaliy tarzda o‘rganadilar.
+
+*** Loyiha nomi: SMS Provider System ***
+
+Bu tizimda client lar ro‘yxatdan o‘tadi, login qiladi, o‘z balansini to‘ldiradi va SMS yuboradi.
+ Har bir yuborilgan SMS uchun client balansidan 125 so‘m yechiladi.
+ Har bir balans o‘zgarishi alohida transaction sifatida saqlanishi kerak.
+
+Project Java va Spring Boot yordamida yoziladi. Database sifatida PostgreSQL ishlatiladi.
+
+
+*** Asosiy Tushuncha ***
+
+Loyihada Profile va Client alohida entity hisoblanadi.
+
+- Profile
+	Bu tizimga kiradigan administrator user hisoblanadi.
+    Profile faqat:
+		ADMIN role ga ega bo‘ladi
+		tizimni boshqaradi
+		barcha SMS larni ko‘ra oladi
+		barcha transaction larni ko‘ra oladi
+		client larni block/unblock qiladi
+	
+	
+
+- Client
+	Bu SMS xizmatidan foydalanuvchi kompaniya yoki tashkilot hisoblanadi.
+
+	Client:
+		SMS yuboradi
+		balans ishlatadi
+		transaction history ko‘radi
+		o‘z SMS larini ko‘radi
+
+	Client da kompaniya ma’lumotlari ham saqlanadi.	
+	
+
+*** Entity lar ***
+1. ProfileEntity
+	Admin user lar uchun entity.
+   Field lar:
+	id
+	name
+	surname
+	login
+	password
+	role
+	status
+	createdDate
+	visible
+
+Role: ADMIN
+
+Status: ACTIVE/BLOCKED
+
+Talablar:
+
+	login unique bo‘lishi kerak
+	password encrypted holda saqlanishi kerak	
+	
+	
+	
+	
+2. ClientEntity
+	SMS xizmatidan foydalanuvchi kompaniya yoki tashkilot ma’lumotlari.
+
+  Field lar:
+	id
+	companyName
+	ownerName
+	ownerSurname
+	phone
+	email
+	login
+	password
+	balance
+	status
+	createdDate
+	visible
+
+Status: ACTIVE/BLOCKED
+
+Talablar:
+	login unique
+	companyName bo‘sh bo‘lmasligi kerak
+	password encrypted holda saqlanishi kerak
+	balance manfiy bo‘lmasligi kerak
+		
+	
+	
+	
+	
+3. SmsEntity
+	Yuborilgan SMS larni saqlaydi.
+
+  Field lar
+	id
+	clientId
+	phone
+	text
+	price
+	status
+	createdDate
+
+SMS status: PENDING/SENT/FAILED
+
+Har bir SMS narxi:
+	125 so‘m	
+	
+
+4. TransactionEntity
+	Balans bilan bog‘liq barcha operatsiyalarni saqlaydi.
+
+  Field lar:
+	id
+	clientId
+	type
+	amount
+	description
+	balanceBefore
+	balanceAfter
+	createdDate
+
+Transaction type: DEBIT/CREDIT
+
+Misollar:
+	SMS yuborilganda:
+	  type = DEBIT 
+	  amount = 125
+	Balance to‘ldirilganda:
+	 type = CREDIT
+	 amount = 50000	
+	
+	
+*** Authentication API ***
+1. Client Authentication
+POST /client/auth/registration
+	Yangi client ro‘yxatdan o‘tadi.
+	Request:
+		companyName
+		ownerName
+		ownerSurname
+		phone
+		email
+		login
+		password
+
+	Validation:
+		login unique
+		email unique
+		password minimum uzunlik
+		phone format tekshirilishi kerak
+	
+
+2. POST /client/auth/login
+Client login qiladi.
+	Request:
+		login
+		password
+
+	Response: Clientning ma'lumotlari va JWT token (hozircha cleint id ni jo'natsak ham bo'ladi)
+		JWT token		
+
+3. POST /client/auth/reset-password
+    Client parolni tiklaydi.
+		
+4. PUT /client/auth/update-password
+   Client eski password orqali yangi password o‘rnatadi.		
+
+
+5. Admin Authentication
+   POST /admin/auth/login
+Admin login qiladi.
+
+Request:
+	login
+	password
+Response: kerakli ma'lumotlar + jwt token	
+
+
+6. Client API
+GET /client/profile
+Client o‘z kompaniya ma’lumotlarini oladi.
+
+
+7. PUT /client/profile
+Client o‘z ma’lumotlarini update qiladi.
+Update qilinadigan field lar:
+	companyName
+	ownerName
+	ownerSurname
+	phone
+	email  
+
+8. GET /client/balance
+Client o‘z balansini ko‘radi.
+		
+
+10. POST /client/fill-balance
+Client balansini to‘ldiradi.
+
+Request:
+	amount
+
+Business logic:
+balance oshiriladi
+TransactionEntity ga CREDIT yoziladi
+
+
+*** SMS API ***
+1. POST /sms/send
+
+Client SMS yuboradi.
+
+Request:
+	phone
+	text
+	client_id (jwt o'tilmagani uchun shuni ishlatamiz. JWT o'tilgan bo'lsa client_id jwt-dan olinadi.)
+
+Business logic:
+	Client ACTIVE holatda bo‘lishi kerak
+	Balance yetarli ekanligi tekshiriladi
+	Agar balance < 125 bo‘lsa exception qaytariladi
+	SMS database ga saqlanadi
+	Client balansidan 125 so‘m yechiladi
+	TransactionEntity ga DEBIT transaction yoziladi
+Muhim:
+	Yuqoridagi barcha jarayonlar bitta transaction ichida ishlashi kerak. Agar biror joyida xato bo‘lsa hammasi rollback bo‘lishi kerak.
+	
+
+
+2. GET /sms/my
+ Client o‘zi yuborgan SMS larni ko‘radi.
+
+Qo‘shimcha:
+	pagination
+	sort
+	filter by date	
+
+
+*** Transaction API ***
+1. GET /transaction/my
+Client o‘z transaction larini ko‘radi.
+Qo‘shimcha:
+	pagination
+	filter by type
+	filter by date
+
+
+
+
+
+
+*** Admin Client API ***
+1. GET /admin/client
+Barcha client lar ro‘yxati.
+
+Qo‘shimcha:
+	pagination
+	search
+	filter by status
+	
+	
+2. GET /admin/client/{id}
+	Bitta client haqida ma’lumot.	
+	
+3. PUT /admin/client/{id}/block
+	Client ni block qilish.
+	Blocked client:
+		login qila oladi
+		lekin SMS yubora olmaydi	
+
+4. PUT /admin/client/{id}/unblock
+ Client ni unblock qilish.
+
+
+
+
+*** Admin SMS API ***
+1 . GET /admin/sms
+	Admin barcha yuborilgan SMS larni ko‘ra oladi.
+
+	Qo‘shimcha filter lar:
+
+	clientId
+	phone
+	fromDate
+	toDate
+	status
+	pagination
+
+
+
+
+2. GET /admin/sms/{id}
+	Bitta SMS haqida ma’lumot olish.
+
+
+
+3. Admin Transaction API
+	GET /admin/transaction
+	Admin barcha transaction larni ko‘ra oladi.
+
+	Qo‘shimcha:
+
+	filter by clientId
+	filter by type
+	filter by date
+	pagination
+	
+4. GET /admin/transaction/{id}
+Bitta transaction haqida ma’lumot olish.	
+
+
+
+*** Statistics API *** 
+1. GET /admin/statistics/sms
+	Statistika API si.
+
+	Quyidagilarni qaytarishi mumkin:
+
+	todaySmsCount
+	totalSmsCount
+	todayIncome
+	totalIncome		
+	
+2. GET /admin/statistics/top-clients
+Eng ko‘p SMS yuborgan client larni chiqarish.	
+
+
+
+
+
+
+
+
+
+*** Pagination Talabi ***
+	Quyidagi API larda pagination ishlatilishi kerak:
+
+	/sms/my
+	/transaction/my
+	/admin/client
+	/admin/sms
+	/admin/transaction
+	
+
+*** Security Talablari ***
+
+Project da Spring Security va JWT ishlatilishi kerak.
+
+Client quyidagi API larni ishlata oladi:
+
+	profile
+	balance
+	fill balance
+	send sms
+	own sms history
+	own transaction history
+
+Admin quyidagi API larni ishlata oladi:
+
+	all clients
+	all sms
+	all transactions
+	statistics
+	block/unblock client
+
+Password lar BCryptPasswordEncoder orqali encode qilinishi kerak.	
+
+
+
+
+*** Talabalar uchun vazifalar ***
+
+Talaba quyidagilarni bajarishi kerak:
+
+	Database schema yaratish
+	Entity lar yozish
+	DTO lar yozish
+	Repository layer yaratish
+	Service layer yozish
+	REST API lar yaratish
+	JWT authentication qilish (o'tilmagan bo'lsa kerak emas)
+	Validation qo‘shish
+	Exception handling yozish
+	Transaction management ishlatish
+	Swagger ulash (o'tilmagan bo'lsa kerak emas)
+	http collection tayyorlash 
+
+
+
+
+
+
+
+
+
+
+
+
+
+*** Qo‘shimcha Advanced Vazifalar ***
+Kuchli talabalar uchun qo‘shimcha topshiriqlar:
+
+Bulk SMS
+Scheduled SMS
+Redis cache
+Rate limiting
+
+Qo‘shimcha Advanced Vazifalar
+
+
+********** Bulk SMS **********
+Maqsad
+	Oddiy SMS yuborishda client faqat bitta telefon raqamga SMS yuboradi.
+	Bulk SMS da esa client bitta request orqali bir nechta telefon raqamlarga SMS yubora oladi.
+
+	Masalan:
+
+	Client 100 ta user ga reklama SMS yubormoqchi.
+	Har biriga alohida request yuborish o‘rniga bitta request bilan yuboradi.
+	
+Vazifa
+
+Talaba Bulk SMS API yozishi kerak.
+
+API
+POST /sms/bulk
+
+
+{
+  "phones": [
+    "+998901112233",
+    "+998901112244",
+    "+998901112255"
+  ],
+  "text": "Chegirma boshlandi"
+}
+
+
+
+Business Logic
+Telefon raqamlar soni olinadi
+Har bir SMS narxi 125 so‘m
+Umumiy summa hisoblanadi
+
+Keyin quyidagilar bajariladi
+Client balance tekshiriladi
+Agar balance yetmasa exception qaytariladi
+Har bir phone uchun alohida SmsEntity yaratiladi
+Client balansidan umumiy summa yechiladi
+TransactionEntity ga bitta DEBIT transaction yoziladi
+
+Qo‘shimcha Talablar
+Validation
+phone list bo‘sh bo‘lmasligi kerak
+maximum 1000 ta phone yuborish mumkin
+SMS text bo‘sh bo‘lmasligi kerak
+
+
+
+
+********** Scheduled SMS **********
+
+Maqsad
+ SMS ni hozir emas, kelajakdagi vaqtga yuborish.
+
+Masalan:
+ Client bugun SMS yozadi, lekin u ertaga soat 09:00 da yuborilishi kerak.
+
+Vazifa
+ Talaba Scheduled SMS functionality yozishi kerak.
+
+Entity ga qo‘shimcha field
+
+SmsEntity ga: scheduledDate qo‘shiladi.
+
+API
+POST /sms/schedule
+
+Request Example
+{
+  "phone": "+998901112233",
+  "text": "Eslatma",
+  "scheduledDate": "2026-06-01T09:00:00"
+}
+
+
+Business Logic
+	SMS immediately yuborilmaydi
+	SMS database ga PENDING status bilan saqlanadi
+	scheduledDate saqlanadi
+	
+
+
+Spring Boot da ishlatiladigan texnologiya 
+	@Scheduled, @Scheduled(fixedRate = 60000)
+	
+
+
+
+
+********** Redis Cache **********
+Maqsad	
+
+Database ga juda ko‘p request tushmasligi uchun tez-tez ishlatiladigan ma’lumotlarni cache qilish.
+
+Redis - memory da ishlaydigan juda tez storage.
+
+
+Oddiy tushuntirish
+Masalan:
+	Client har sekund balansini so‘rayapti.
+	Agar har safar database ga murojaat qilinsa:
+		database yuklanadi
+		system sekinlashadi
+
+Shuning uchun:
+	birinchi request database dan olinadi
+	keyingi request Redis dan olinadi
+	Bu juda tez ishlaydi.
+	
+	
+Vazifa
+	Talaba Redis cache qo‘shishi kerak.
+	Cache qilinadigan API lar
+
+Masalan:
+	GET /client/profile
+	GET /client/balance
+
+
+Ishlash tartibi
+	Birinchi request database ga boradi
+	Natija Redis ga saqlanadi
+	Keyingi request Redis dan qaytadi	
+
+Muhim joy
+	Agar profile update bo‘lsa yoki balance o‘zgarsa:
+	eski cache o‘chirilishi kerak
+
+
+
+Spring annotation lar
+	@Cacheable, @CacheEvict
+
+Cache qilish - @Cacheable(value = "clientBalance", key = "#clientId")
+Cache o‘chirish - @CacheEvict(value = "clientBalance", key = "#clientId")	
+
+
+
+
+
+********** Rate Limiting **********
+Maqsad: Bir client juda ko‘p request yuborib system ni yiqitib yubormasligi uchun limit qo‘yish.
+
+
+Masalan:
+	Bir client 1 sekundda 10000 ta SMS yuborsa:
+	system sekinlashadi
+	database overload bo‘ladi
+	Shuning uchun limit qo‘yiladi.
+
+
+Vazifa
+	Talaba SMS yuborish API siga rate limit qo‘shishi kerak.
+	
+Misol
+1 client: 1 minutda maksimum 20 ta SMS yubora oladi yoki  1 soatda maksimum 1000 ta SMS yubora oladi	
+
+
+Agar limitdan oshsa
+	API quyidagi error ni qaytaradi: Too many requests (HTTP status: 429 TOO MANY REQUESTS)  return qiladi.
+
+Rate limit qanday ishlaydi: 
+	System:
+	client request sonini hisoblaydi
+	vaqt bilan tekshiradi
+	limitdan oshsa bloklaydi
+
+
+Qanday qilish mumkin
+ Oddiy usul:
+	Redis ishlatish
+	request count saqlash
+Masalan:
+  client:15:sms_count = 18
+
+
+Qo‘shimcha Challenge
+Kuchli talabalar uchun:
+	har xil tarif uchun har xil limit
+	admin uchun limit bo‘lmasligi
+	IP address bo‘yicha limit
+
+
+
+
+
+
+
+
+
+	
